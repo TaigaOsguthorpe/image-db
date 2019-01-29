@@ -68,7 +68,6 @@ class DB(object):
             raise TypeError("tag_name must be string")
         else:
             allowed = "abcdefghijklmnopqrstuvwxyz-_/=+^0123456789"
-            #disallowed = "\\ "
             blacklist = [" ", ""]
             #print(blacklist)
 
