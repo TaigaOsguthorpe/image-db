@@ -215,18 +215,6 @@ class DB(object):
             return {"file_id": file_id, "file_path": file_path, "file_name": file_name}
 
 
-    def get_file_from_id(self, file_id):
-        """get_file but with id instead of file_path and file_name"""
-        if type(file_id) is not int:
-            print("file_id must be a integer!")
-            raise TypeError("file_id must be int")
-
-        self.cur.execute("SELECT * from files where id=?", (file_id,))
-        result = self.cur.fetchall()
-        #result example [(id, file_path, file_name, removed)]
-        return {"file_id": file_id, "file_path": result[0][1], "file_name": result[0][2], "removed": result[0][3]}
-
-
     def remove_file(self, file_path, file_name):
         """Changes the 'removed' column to 1 on."""
 
