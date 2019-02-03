@@ -1,5 +1,5 @@
 ## Image-db
-An image sorting/tagging program currently in very early development.
+An image tagging/sorting program currently in very early development.
 
 
 ### Dependencies
