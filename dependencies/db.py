@@ -1,4 +1,22 @@
 # -*- coding: utf-8 -*-
+"""
+    Image-db - An image tagging/sorting program.
+    Copyright (C) 2019 Taiga Osguthorpe
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import sqlite3
 import os
 import sys
@@ -13,6 +31,7 @@ class DB(object):
         self.commited = None
         #self.strict_search = True
 
+    # Connection handling functions
     def _connect(self, path=None):
         """Opens or creates a databse if not allready there in the path specified if no path specified creates it in the smae folder as this file is located"""
         if path:
@@ -20,7 +39,7 @@ class DB(object):
                 raise TypeError("path argument must be a string!")
 
             if os.path.isdir(path):
-                self.conn = sqlite3.connect('{0}/sumo.db')
+                self.conn = sqlite3.connect(path)
             else:
                 raise UserWarning("The path specified for the database file dose not exist!")
 
@@ -41,11 +60,13 @@ class DB(object):
         self.cur.execute('''CREATE TABLE IF NOT EXISTS tags
                        (id INTEGER PRIMARY KEY AUTOINCREMENT, tag_name TEXT, removed INTEGER)''')
 
+        print("Sucsessfully oppened a connection to the database.")
+
 
     def _exit(self):
         """Closes the connection to the database and returns None."""
         self.conn.close()
-        print("Sucsessfully closed the connection to the database")
+        print("Sucsessfully closed the connection to the database.")
         return True
 
 
@@ -68,7 +89,7 @@ class DB(object):
             raise TypeError("tag_name must be string")
         else:
             allowed = "abcdefghijklmnopqrstuvwxyz-_/=+^0123456789"
-            blacklist = [" ", ""]
+            blacklist = [" ", "", ":"]
             #print(blacklist)
 
             def blacklist_check():
@@ -104,7 +125,6 @@ class DB(object):
             file_path:
             - type: string (directory to file)
             - example: file_path = "/home/user/path/"
-            - note: the ending '/' is required if you do not want to manually add it back in later on
 
             file_name:
             - type: string
@@ -120,6 +140,15 @@ class DB(object):
 
         if type(file_name) is not str:
             raise TypeError("file_name must be a string")
+
+        blacklist_ = ["/", "\\"]
+
+        for c in file_name:
+            for x in blacklist_:
+                if c == x:
+                    raise Exception("file_name must not contain: {0}".format(blacklist_))
+                else:
+                    pass
 
         self.cur.execute("SELECT * from files WHERE file_path=? and file_name=?", (file_path, file_name))  # Search if file allready exists in the database
 
@@ -201,7 +230,7 @@ class DB(object):
 
 
         if len(result) == 0:
-            print("No entry found with file_path: {0} and file_name: {1}".format(file_paath, file_name))
+            print("No entry found with file_path: {0} and file_name: {1}".format(file_path, file_name))
             return None
 
         if len(result) > 1:
@@ -215,7 +244,7 @@ class DB(object):
             return {"file_id": file_id, "file_path": file_path, "file_name": file_name}
 
 
-    def remove_file(self, file_path, file_name):
+    def remove_file(self, file_path, file_name, force_remove=False):
         """Changes the 'removed' column to 1 on."""
 
         if type(file_path) is not str:
@@ -223,6 +252,11 @@ class DB(object):
 
         if type(file_name) is not str:
             raise TypeError("file_name must be a string")
+
+        if force_remove:
+            self.cur.execute("DELETE FROM files where file_path=? and file_name=?",(file_path, file_name))
+            self.commited = False
+            return
 
         self.cur.execute("UPDATE files SET removed=1 WHERE file_path=? AND file_name=?", (file_path, file_name))
         self.commited = False
@@ -236,6 +270,17 @@ class DB(object):
         for line in result:
             return_list.append(line[0])
             print(line)
+        return return_list
+
+
+    def get_all_tags(self):
+        self.cur.execute("SELECT * from tags")
+        result = self.cur.fetchall()
+        print("get_all_tags result: {0}".format(result))
+        return_list = []
+        for line in result:
+            return_list.append({"tag_id": line[0], "tag_name": line[1], "removed": line[2]})
+            #print(line)
         return return_list
 
 
@@ -309,6 +354,16 @@ class DB(object):
             return result
 
 
+        if len(query.split(":")) == 2:
+            self.cur.execute("SELECT id FROM files WHERE file_name=?", (query.split(":")[1],))
+            result = self.cur.fetchall()
+            print("result: {0}".format(result))
+            return_list = []
+            for x in result:
+                return_list.append(x[0])
+            return return_list
+
+
         query_list = query.split(" ")
         print("query_list: {0}".format(query_list))
 
@@ -317,6 +372,7 @@ class DB(object):
             """Get tags id from query string"""
             if tag == '':
                 pass
+
             else:
                 result_tag = self.get_tag(tag_name=tag)
                 if result_tag is None:
@@ -384,30 +440,6 @@ class DB(object):
         return return_list
 
 
-
-
-    def remove_tag(self, tag_name, force_remove=None):
-        """Sets removed to 1 in db unless force_remove is True then removes the entry from the db. If sucsessfull returns True. If not sucsesfull returns False
-        tag_name:
-        - Required! str of tag_name being removed
-        force_remove:"""
-        if type(tag_name) is not str:
-            raise TypeError("tag_name must be str")
-
-        if self.get_tag(tag_name) is None:
-            print("Unable to find specified tag to remove.")
-            return False
-
-        if force_remove == True:
-            self.cur.execute("DELETE FROM tags where tag_name=?", (tag_name, ))
-            return True
-        else:
-            self.cur.execute("UPDATE tags SET removed=1 WHERE tag_name=?", (tag_name,))
-            self.commited = False
-            return True
-
-
-
     def assign_tag(self, file_id, tag_id):
         """Assigns a tag_id to a file_id in the \"files_tags\"."""  # \" escapes the " " syntax
         if type(file_id) and type(tag_id) is not int:
@@ -423,7 +455,6 @@ class DB(object):
         return True
 
 
-
     def remove_assigned_tag(self, tag_id, file_id):
         """Remove a tag from a file inside the files_tags table"""
         if type(tag_id) and type(file_id) is not int:
@@ -434,13 +465,36 @@ class DB(object):
         return
 
 
+    def remove_tag(self, tag_name, force_remove=None):
+        """Sets removed to 1 in db unless force_remove is True then removes the entry from the db. If sucsessfull returns True. If not sucsesfull returns False
+        tag_name:
+        - Required! str of tag_name being removed
+        force_remove:"""
+        if type(tag_name) is not str:
+            raise TypeError("tag_name must be str")
+
+        if self.get_tag(tag_name) is None:
+            print("Unable to find specified tag to remove.")
+            return False
+
+        if force_remove:
+            t = self.get_tag(tag_nme)
+            self.cur.execute("DELETE FROM files_tags where tag_id=?", (t['tag_id'], ))
+            self.cur.execute("DELETE FROM tags where tag_name=?", (tag_name, ))
+            return True
+        else:
+            self.cur.execute("UPDATE tags SET removed=1 WHERE tag_name=?", (tag_name,))
+            self.commited = False
+            return True
+
+
     # Database miscellaneous function
 
     def commit(self):
         """Saves (commit) changes to the database."""
         self.conn.commit()
         self.commited = True
-        print("Sucsessfully saved the database")
+        print("Sucsessfully saved the database.")
         return True
 
 

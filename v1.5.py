@@ -1,13 +1,32 @@
 # -*- coding: utf-8 -*-
+"""
+    Image-db - An image tagging/sorting program.
+    Copyright (C) 2019 Taiga Osguthorpe
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+"""
 
 from PySide2 import QtCore, QtGui, QtWidgets
 from dependencies.db import DB
+from ui import about, v1_tag_maker
 #import image_veiwer
 #from multiprocessing import Process
 import imghdr
 import sys
+import os
+#from PIL import Image
 #import atexit
-
 
 
 try:
@@ -96,26 +115,58 @@ class Ui_MainWindow(object):
         self.db = DB()
         print("Backend Version: {0}".format(self.db.__version__))
 
+    def succ(self):
+        print("succ")
+
+
+    def succ2(self):
+        item = self.add_images_widget.currentItem()
+        data = item.data(QtCore.Qt.UserRole)
+        print("data: '{0}'".format(data))
+
+
+    def add_images_ctx_(self):
+        pos = QtGui.QCursor.pos()
+        print("mouse pos: {0}".format(pos))
+        self.add_images_context_menu.exec_(pos)
+
+
+    def rb_ctx_menu_call(self):
+        pos = QtGui.QCursor.pos()
+        print("mouse pos: {0}".format(pos))
+        self.rb_ctx_menu.exec_(pos)
+
+
     def db_search(self):
+        # If multiple search windows want to be made
+        # Need to make this modular and not static
+        # "self.result_box_1" etc needs to not be done here.
         self.result_box_1.clear()
 
         with self.db:
             result = self.db.search(self.search_box_1.text())
 
+            if result is None:
+                return print("Search found None")
+
             for id in result:
                 print("id: {0}".format(id))
                 file_ = self.db.get_file(file_id=id)
-                icon = QtGui.QIcon()
-                image_path = "{0}/{1}".format(file_['file_path'], file_['file_name'])
-                print(image_path)
-                icon.addPixmap(QtGui.QPixmap(_fromUtf8(image_path)), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-                item = QtWidgets.QListWidgetItem()
-                item.setIcon(icon)
-                #print(help(item.setData))
-                item.setData(QtCore.Qt.UserRole, file_)
-                print(item.data(QtCore.Qt.UserRole))
-                #print(image)
-                self.result_box_1.addItem(item)
+                if file_['removed'] == 1:
+                    pass
+                else:
+                    icon = QtGui.QIcon()
+                    image_path = "{0}/{1}".format(file_['file_path'], file_['file_name'])
+                    print(image_path)
+                    #icon.addPixmap(QtGui.QPixmap(_fromUtf8(image_path)).scaled(256, 256, aspectMode=QtCore.Qt.KeepAspectRatio), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+                    icon.addPixmap(QtGui.QPixmap(_fromUtf8(image_path)).scaled(512, 512, aspectMode=QtCore.Qt.KeepAspectRatio), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+                    item = QtWidgets.QListWidgetItem()
+                    item.setIcon(icon)
+                    #print(help(item.setData))
+                    item.setData(QtCore.Qt.UserRole, file_)
+                    print(item.data(QtCore.Qt.UserRole))
+                    #print(image)
+                    self.result_box_1.addItem(item)
 
 
     def get_info(self):
@@ -129,6 +180,104 @@ class Ui_MainWindow(object):
         self._ui = Ui_ImageVeiwer(file=path, ImageVeiwer=self._ImageViewer)
         self._ui.setupUi()
         self._ImageViewer.show()
+
+
+    def open_about(self):
+        self._about = QtWidgets.QDialog()
+        self._ui = about.Ui_AboutDialog()
+        self._ui.setupUi(AboutDialog=self._about)
+        #self._about.show()
+        self._about.exec_()
+
+
+    def open_tag_creator(self):
+        self._tag_c = QtWidgets.QDialog()
+        self._ui = v1_tag_maker.Ui_TagMakerDialog()
+        self._ui.setupUi(TagMakerDialog=self._tag_c, db=self.db)
+        #self._about.show()
+        self._tag_c.exec_()
+
+
+    def db_add_file(self, path):
+        """Add a file to the db with the givent path
+        path must contain file name E.g: path = '/home/user/path/file.ext'"""
+        p = os.path.split(path)
+        file_path = p [0]
+        file_name = p[1]
+        with self.db:
+            self.db.add_file(file_path=file_path, file_name=file_name)
+            self.db.commit()
+
+
+    def context_add_image(self, commit=True):
+        item = self.add_images_widget.currentItem()
+        data = item.data(QtCore.Qt.UserRole)
+        if data:
+            self.db_add_file(data)
+            if commit:
+                self.db.commit()
+
+
+    def db_force_remove_file(self):
+        """Calls 'db.remove_file(force_remove=True)' this will DELETE THE ITEM FROM THE database PERMANENTLY!"""
+        item = self.result_box_1.currentItem()
+        data = item.data(QtCore.Qt.UserRole)
+        file_path = data['file_path']
+        file_name = data['file_name']
+        print("data: {0}".format(data))
+        with self.db:
+            self.db.remove_file(force_remove=True, file_path=file_path, file_name=file_name)
+            self.db.commit()
+            self.db.pretty_fetch_all()
+
+
+    def db_remove_file(self):
+        """Calls 'db.remove_file' this sets the removed collum to 1"""
+        item = self.result_box_1.currentItem()
+        data = item.data(QtCore.Qt.UserRole)
+        file_path = data['file_path']
+        file_name = data['file_name']
+        print("data: {0}".format(data))
+        with self.db:
+            self.db.remove_file(file_path=file_path, file_name=file_name)
+            self.db.commit()
+            self.db.pretty_fetch_all()
+
+
+    def db_remove_tag(self):
+        """Calls 'db.remove_tag' this sets the removed collum to 1"""
+        item = self.tags_list_view.currentItem()
+        data = item.data(QtCore.Qt.UserRole)
+        print("data: {0}".format(data))
+        with self.db:
+            self.db.remove_tag(data['tag_name'])
+            self.db.commit()
+
+
+    def db_assign_tag(self):
+        pass
+
+
+    def file_d(self):
+        #print(QtGui.QImageWriter.supportedImageFormats())
+        #dialog = QtWidgets.QFileDialog()
+        files = QtWidgets.QFileDialog.getOpenFileNames()
+        print(files)
+        for file in files[0]:
+            print("File: {0}".format(file))
+            if file == "All Files (*)":
+                pass
+            else:
+                #print("file_d (file): {0}".format(file))
+                icon = QtGui.QIcon()
+                icon.addPixmap(QtGui.QPixmap(_fromUtf8(file)).scaled(256, 256, aspectMode=QtCore.Qt.KeepAspectRatio))
+                item = QtWidgets.QListWidgetItem()
+                item.setIcon(icon)
+                item.setData(QtCore.Qt.UserRole, file)
+
+                print(item.data(QtCore.Qt.UserRole))
+                self.add_images_widget.addItem(item)
+
 
 
     def setupUi(self, MainWindow):
@@ -171,17 +320,14 @@ class Ui_MainWindow(object):
         self.tag_label.setFont(font)
         self.tag_label.setObjectName("tag_label")
         self.verticalLayout_3.addWidget(self.tag_label)
-        self.tags_tree_view = QtWidgets.QListWidget(self.widget)
+        self.tags_list_view = QtWidgets.QListWidget(self.widget)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Maximum, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.tags_tree_view.sizePolicy().hasHeightForWidth())
-        self.tags_tree_view.setSizePolicy(sizePolicy)
-        self.tags_tree_view.setObjectName("tags_tree_view")
-        self.verticalLayout_3.addWidget(self.tags_tree_view)
-
-
-
+        sizePolicy.setHeightForWidth(self.tags_list_view.sizePolicy().hasHeightForWidth())
+        self.tags_list_view.setSizePolicy(sizePolicy)
+        self.tags_list_view.setObjectName("tags_list_view")
+        self.verticalLayout_3.addWidget(self.tags_list_view)
 
 
         self.widget_3 = QtWidgets.QWidget(self.widget)
@@ -340,8 +486,13 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
 
-        ###     c:     ###
 
+        ###     Widget Setup     ###
+        self.actionAbout.triggered.connect(self.open_about)
+
+
+                    ### Search Tab ###
+        self.add_tag_button.clicked.connect(self.open_tag_creator)
         self.search_button_1.clicked.connect(self.db_search)
         self.search_box_1.returnPressed.connect(self.db_search)
 
@@ -352,7 +503,85 @@ class Ui_MainWindow(object):
         self.result_box_1.itemClicked.connect(self.get_info)
 
 
+        # result_box_1 Context Menu setup
+        self.result_box_1.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.result_box_1.customContextMenuRequested.connect(self.rb_ctx_menu_call)
+
+        self.rb_ctx_menu = QtWidgets.QMenu(parent=self.result_box_1)
+
+        self.rb_ctx_remove = QtWidgets.QAction("Remove")
+        self.rb_ctx_remove.triggered.connect(self.db_remove_file)
+        self.rb_ctx_menu.addAction(self.rb_ctx_remove)
+
+        self.rb_ctx_force_remove = QtWidgets.QAction("Force Remove")
+        self.rb_ctx_force_remove.triggered.connect(self.db_force_remove_file)
+        self.rb_ctx_menu.addAction(self.rb_ctx_force_remove)
+
+        self.rb_ctx_clear = QtWidgets.QAction("Clear")
+        self.rb_ctx_clear.triggered.connect(self.result_box_1.clear)
+        self.rb_ctx_menu.addAction(self.rb_ctx_clear)
+
+
+                    ### Add Images Tab ###
+        # Add button setup
+        self.add_images_button.clicked.connect(self.file_d)
+
+
+        # List widget setup
+        self.add_images_widget.setViewMode(QtWidgets.QListView.IconMode)
+        self.add_images_widget.setIconSize(QtCore.QSize(128, 128))
+        self.add_images_widget.setMovement(QtWidgets.QListView.Static)
+
+
+        # List widget context menu setup
+        self.add_images_widget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.add_images_widget.customContextMenuRequested.connect(self.add_images_ctx_)
+
+        self.add_images_context_menu = QtWidgets.QMenu(parent=self.add_images_widget)
+
+        self.a_i_ctx_item = QtWidgets.QAction("Assign Tag")
+        #self.a_i_ctx_item.triggered.connect(self.open_tag_creator)
+        self.a_i_ctx_item.triggered.connect(self.succ2)
+        self.add_images_context_menu.addAction(self.a_i_ctx_item)
+
+        self.a_i_ctx_commit = QtWidgets.QAction("Commit to DB")
+        self.a_i_ctx_commit.triggered.connect(self.context_add_image)
+        self.add_images_context_menu.addAction(self.a_i_ctx_commit)
+
+        self.a_i_ctx_clear = QtWidgets.QAction("Clear")
+        self.a_i_ctx_clear.triggered.connect(self.add_images_widget.clear)
+        self.add_images_context_menu.addAction(self.a_i_ctx_clear)
+
+
+        # tags_list_view settup
+        with self.db:
+            tags_list = self.db.get_all_tags()
+            #print(self.db.get_all_tags())
+            print("tags_list: {0}".format(tags_list))
+
+            for tag in tags_list:
+                if tag['removed'] == 1:
+                    pass
+                else:
+                    c = self.db.fetch_from_files_tags(tag['tag_id'])
+                    print("c: {0}".format(c))
+                    if c is None:
+                        c = 0
+                    else:
+                        c = len(c)
+
+                    text = "{0}  ({1})".format(tag['tag_name'], c)
+                    item = QtWidgets.QListWidgetItem()
+                    item.setData(QtCore.Qt.UserRole, tag)
+                    item.setText(text)
+                    self.tags_list_view.addItem(item)
+
+
+        self.remove_tag_button.clicked.connect(self.db_remove_tag)
+
+
     def retranslateUi(self, MainWindow):
+        # Experement with only setting text and not translate?
         print("retranslating Ui")
         MainWindow.setWindowTitle(QtWidgets.QApplication.translate("MainWindow", "MainWindow", None, -1))
         self.tag_label.setText(QtWidgets.QApplication.translate("MainWindow", "Tags", None, -1))
