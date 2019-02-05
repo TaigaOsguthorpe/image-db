@@ -84,7 +84,7 @@ class DB(object):
     # Database inserting functions
 
     def add_tag(self, tag_name):
-        """Adds a tag to the tags table in the database"""
+        """Adds a tag to the tags table in the database. WARNING THIS NEEDS TO BE WORKED ON!"""
         if type(tag_name) is not str:
             raise TypeError("tag_name must be string")
         else:
@@ -104,8 +104,16 @@ class DB(object):
 
             x = blacklist_check()
             if x is True:
-                self.cur.execute("SELECT * from tags WHERE tag_name=?", (tag_name.replace("\\", ""),))
-                if len(self.cur.fetchall()) > 0:
+                self.cur.execute("SELECT * from tags WHERE tag_name=?", (tag_name.replace("\\", ""), ))
+                result = self.cur.fetchall()
+                try:
+                    if result[0][2] == 1:
+                        self.cur.execute("UPDATE tags SET removed=0 WHERE tag_name=?", (tag_name, ))
+                        return True
+                except IndexError:
+                    pass
+
+                if len(result) > 0:
                     print("Tag allready exists!")
                     return
 
@@ -276,7 +284,7 @@ class DB(object):
     def get_all_tags(self):
         self.cur.execute("SELECT * from tags")
         result = self.cur.fetchall()
-        print("get_all_tags result: {0}".format(result))
+        #print("get_all_tags result: {0}".format(result))
         return_list = []
         for line in result:
             return_list.append({"tag_id": line[0], "tag_name": line[1], "removed": line[2]})
@@ -319,9 +327,16 @@ class DB(object):
 
 
     def fetch_from_files_tags(self, tag_id=None, file_id=None):
-        """Returns list e.g [1, 3]"""
+        """Returns list e.g [1, 3]. WARNING! THIS NEEDS TO BE WORKED ON!"""
         r = None
-        if tag_id:
+        if tag_id and file_id:
+            print("THIS IS A THING!!!!")
+            self.cur.execute("SELECT * from files_tags WHERE tag_id=? and file_id=?", (tag_id, file_id))
+            result = self.cur.fetchall()
+            print("IMPORTANT!!!!!!!!!!!!!: {0}".format(result))
+            return result
+
+        elif tag_id:
             if type(tag_id) is not int:
                 raise TypeError("tag_id argument type must be int")
 
@@ -334,8 +349,10 @@ class DB(object):
             r = []
             [(lambda id: r.append(id[0]))(id) for id in result]
             #[(lambda s: print(" - {0} - ({1})".format(s.name, s.id)))(s) for s in client.guilds]
+
         elif file_id:
             raise Exception("file_id argument is not supported at this time")
+
 #            if type(file_id) is not int:
 #                raise TypeError("file_id argument must be int")
 #            else:
@@ -445,8 +462,9 @@ class DB(object):
         if type(file_id) and type(tag_id) is not int:
             raise TypeError("file_id and tag_id must be int")
 
-        result = self.fetch_from_files_tags()
-        if result is not None:
+        result = self.fetch_from_files_tags(tag_id=tag_id, file_id=file_id)
+        print(result)
+        if len(result) > 0:
             raise Exception("tag allready assigned with file")
             #return False
 

@@ -119,10 +119,11 @@ class Ui_MainWindow(object):
         print("succ")
 
 
-    def succ2(self):
-        item = self.add_images_widget.currentItem()
-        data = item.data(QtCore.Qt.UserRole)
-        print("data: '{0}'".format(data))
+    def succ2(self, text):
+        #item = self.add_images_widget.currentItem()
+        #data = item.data(QtCore.Qt.UserRole)
+        #print("data: '{0}'".format(data))
+        print("succ2: {0}".format(text))
 
 
     def add_images_ctx_(self):
@@ -159,7 +160,8 @@ class Ui_MainWindow(object):
                     image_path = "{0}/{1}".format(file_['file_path'], file_['file_name'])
                     print(image_path)
                     #icon.addPixmap(QtGui.QPixmap(_fromUtf8(image_path)).scaled(256, 256, aspectMode=QtCore.Qt.KeepAspectRatio), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-                    icon.addPixmap(QtGui.QPixmap(_fromUtf8(image_path)).scaled(512, 512, aspectMode=QtCore.Qt.KeepAspectRatio), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+                    icon.addPixmap(QtGui.QPixmap(_fromUtf8(image_path)).scaled(256, 256, aspectMode=QtCore.Qt.KeepAspectRatio), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+                    #icon.addPixmap(QtGui.QPixmap(_fromUtf8(image_path)))
                     item = QtWidgets.QListWidgetItem()
                     item.setIcon(icon)
                     #print(help(item.setData))
@@ -169,12 +171,11 @@ class Ui_MainWindow(object):
                     self.result_box_1.addItem(item)
 
 
-    def get_info(self):
+    def open_file(self):
         data = self.result_box_1.currentItem().data(QtCore.Qt.UserRole)
         print(data)
         path = "{0}/{1}".format(data['file_path'], data['file_name'])
         print(path)
-
 
         self._ImageViewer = QtWidgets.QWidget()
         self._ui = Ui_ImageVeiwer(file=path, ImageVeiwer=self._ImageViewer)
@@ -188,14 +189,6 @@ class Ui_MainWindow(object):
         self._ui.setupUi(AboutDialog=self._about)
         #self._about.show()
         self._about.exec_()
-
-
-    def open_tag_creator(self):
-        self._tag_c = QtWidgets.QDialog()
-        self._ui = v1_tag_maker.Ui_TagMakerDialog()
-        self._ui.setupUi(TagMakerDialog=self._tag_c, db=self.db)
-        #self._about.show()
-        self._tag_c.exec_()
 
 
     def db_add_file(self, path):
@@ -244,6 +237,61 @@ class Ui_MainWindow(object):
             self.db.pretty_fetch_all()
 
 
+    def update_tags_list(self):
+        self.tags_list_view.clear()
+        with self.db:
+            tags_list = self.db.get_all_tags()
+            #print(self.db.get_all_tags())
+            print("tags_list: {0}".format(tags_list))
+
+            for tag in tags_list:
+                if tag['removed'] == 1:
+                    pass
+                else:
+                    c = self.db.fetch_from_files_tags(tag['tag_id'])
+                    #print("c: {0}".format(c))
+                    if c is None:
+                        c = 0
+                    else:
+                        c = len(c)
+
+                    text = "{0}  ({1})".format(tag['tag_name'], c)
+                    item = QtWidgets.QListWidgetItem()
+                    item.setData(QtCore.Qt.UserRole, tag)
+                    item.setText(text)
+                    self.tags_list_view.addItem(item)
+
+
+    def db_assign_tag(self, parent):
+#        info = parent
+#        self._ui.setupUi(TagMakerDialog=self._tag_c, db=self.db, assign=True, info=info)
+        if type(parent) is not QtWidgets.QListWidget:
+            raise TypeError("parent argument must be type PySide2.QtWidgets.QListWidget")
+        tag = self.tags_list_view.currentItem()
+        t_data = tag.data(QtCore.Qt.UserRole)
+        print("t_data: {0}".format(t_data))
+
+        file = parent.currentItem()
+        f_data = file.data(QtCore.Qt.UserRole)
+        print("f_data: {0}".format(f_data))
+
+        with self.db:
+            self.db.assign_tag(tag_id=t_data['tag_id'], file_id=f_data['file_id'])
+            self.db.commit()
+
+        self.update_tags_list()
+
+
+
+    def open_tag_creator(self):
+        self._tag_c = QtWidgets.QDialog()
+        self._ui = v1_tag_maker.Ui_TagMakerDialog()
+        self._ui.setupUi(TagMakerDialog=self._tag_c, db=self.db)
+        #self._about.show()
+        self._tag_c.exec_()
+        self.update_tags_list()
+
+
     def db_remove_tag(self):
         """Calls 'db.remove_tag' this sets the removed collum to 1"""
         item = self.tags_list_view.currentItem()
@@ -252,10 +300,31 @@ class Ui_MainWindow(object):
         with self.db:
             self.db.remove_tag(data['tag_name'])
             self.db.commit()
+        self.update_tags_list()
 
 
-    def db_assign_tag(self):
-        pass
+    def db_remove_assigned_tag(self, tag, file):
+        tag_ = tag.data(QtCore.Qt.UserRole)
+        print("tag_: {0}".format(tag_))
+        file_ = file.data(QtCore.Qt.UserRole)
+        print("file_: {0}".format(file_))
+        with self.db:
+            self.db.remove_assigned_tag(tag_id=tag_['tag_id'], file_id=file_['file_id'])
+            #self.db.pretty_fetch_all()
+            self.db.commit()
+        self.update_tags_list()
+
+
+    def ctx_menu_handler(self, menu):
+        if type(menu) is not QtWidgets.QMenu:
+            raise TypeError("menu argument type must be PySide2.QtWidget.QMenu")
+        pos = QtGui.QCursor.pos()
+        print("mouse pos: {0}".format(pos))
+        menu.exec_(pos)
+
+
+    def get_info_(self, object):
+        print(object.data(QtCore.Qt.UserRole))
 
 
     def file_d(self):
@@ -421,6 +490,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_3.addWidget(self.search_button_1)
         self.verticalLayout_4.addWidget(self.widget_4)
         self.result_box_1 = QtWidgets.QListWidget(self.search_tab)
+        print("result_box_1 type: {0}".format(type(self.result_box_1)))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -500,7 +570,7 @@ class Ui_MainWindow(object):
         self.result_box_1.setIconSize(QtCore.QSize(125, 125))
         self.result_box_1.setMovement(QtWidgets.QListView.Static)
 
-        self.result_box_1.itemClicked.connect(self.get_info)
+        self.result_box_1.itemClicked.connect(self.open_file)
 
 
         # result_box_1 Context Menu setup
@@ -508,6 +578,18 @@ class Ui_MainWindow(object):
         self.result_box_1.customContextMenuRequested.connect(self.rb_ctx_menu_call)
 
         self.rb_ctx_menu = QtWidgets.QMenu(parent=self.result_box_1)
+
+        self.rb_ctx_assign_tag = QtWidgets.QAction("Assign Tag")
+        self.rb_ctx_assign_tag.triggered.connect(lambda: self.db_assign_tag(self.result_box_1))
+        self.rb_ctx_menu.addAction(self.rb_ctx_assign_tag)
+
+        self.rb_ctx_remove_tag = QtWidgets.QAction("Remove Tag")
+        self.rb_ctx_remove_tag.triggered.connect(lambda: self.db_remove_assigned_tag(file=self.result_box_1.currentItem(), tag=self.tags_list_view.currentItem()))
+        self.rb_ctx_menu.addAction(self.rb_ctx_remove_tag)
+
+        self.rb_ctx_get_info = QtWidgets.QAction("Get Info")
+        self.rb_ctx_get_info.triggered.connect(lambda: self.get_info_(self.result_box_1.currentItem()))
+        self.rb_ctx_menu.addAction(self.rb_ctx_get_info)
 
         self.rb_ctx_remove = QtWidgets.QAction("Remove")
         self.rb_ctx_remove.triggered.connect(self.db_remove_file)
@@ -539,10 +621,10 @@ class Ui_MainWindow(object):
 
         self.add_images_context_menu = QtWidgets.QMenu(parent=self.add_images_widget)
 
-        self.a_i_ctx_item = QtWidgets.QAction("Assign Tag")
+        """self.a_i_ctx_item = QtWidgets.QAction("Assign Tag")
         #self.a_i_ctx_item.triggered.connect(self.open_tag_creator)
-        self.a_i_ctx_item.triggered.connect(self.succ2)
-        self.add_images_context_menu.addAction(self.a_i_ctx_item)
+        self.a_i_ctx_item.triggered.connect(lambda: self.succ2("succ"))
+        self.add_images_context_menu.addAction(self.a_i_ctx_item)"""
 
         self.a_i_ctx_commit = QtWidgets.QAction("Commit to DB")
         self.a_i_ctx_commit.triggered.connect(self.context_add_image)
@@ -553,28 +635,18 @@ class Ui_MainWindow(object):
         self.add_images_context_menu.addAction(self.a_i_ctx_clear)
 
 
-        # tags_list_view settup
-        with self.db:
-            tags_list = self.db.get_all_tags()
-            #print(self.db.get_all_tags())
-            print("tags_list: {0}".format(tags_list))
+                ### tags_list_view settup ###
+        self.update_tags_list()
 
-            for tag in tags_list:
-                if tag['removed'] == 1:
-                    pass
-                else:
-                    c = self.db.fetch_from_files_tags(tag['tag_id'])
-                    print("c: {0}".format(c))
-                    if c is None:
-                        c = 0
-                    else:
-                        c = len(c)
+        # Context Menu
+        self.tags_list_view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.tags_list_view.customContextMenuRequested.connect(lambda: self.ctx_menu_handler(self.tag_ctx_menu))
 
-                    text = "{0}  ({1})".format(tag['tag_name'], c)
-                    item = QtWidgets.QListWidgetItem()
-                    item.setData(QtCore.Qt.UserRole, tag)
-                    item.setText(text)
-                    self.tags_list_view.addItem(item)
+        self.tag_ctx_menu = QtWidgets.QMenu(parent=self.tags_list_view)
+
+        self.tag_ctx_refresh = QtWidgets.QAction("Refresh")
+        self.tag_ctx_refresh.triggered.connect(self.update_tags_list)
+        self.tag_ctx_menu.addAction(self.tag_ctx_refresh)
 
 
         self.remove_tag_button.clicked.connect(self.db_remove_tag)
