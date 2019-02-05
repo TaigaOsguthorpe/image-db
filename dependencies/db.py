@@ -420,7 +420,7 @@ class DB(object):
                     temp_file_list.append(file_id[0])
                 #temp_file_list.append(result[0][0])
             else:
-                raise Exception("tag_id '{0}' is not assigned to any file.\nUse get_tag(tag_id={0}) to learn more :)".format(tag_id))
+                print("tag_id '{0}' is not assigned to any file.".format(tag_id))
             files_list.append(temp_file_list)
         print("files_list: {0}".format(files_list))
 
