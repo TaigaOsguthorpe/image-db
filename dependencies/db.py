@@ -64,7 +64,7 @@ class DB(object):
 
 
     def _exit(self):
-        """Closes the connection to the database and returns None."""
+        """Closes the connection to the database and returns True."""
         self.conn.close()
         print("Sucsessfully closed the connection to the database.")
         return True
