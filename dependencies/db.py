@@ -1,21 +1,25 @@
 # -*- coding: utf-8 -*-
-"""
-    Image-db - An image tagging/sorting program.
-    Copyright (C) 2019 Taiga Osguthorpe
+''' A note on Documentation.
+    (Full documentation is not currently available)
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+    Documentation within this file is marked in two ways:
+    1) The use of tripple quattion marks """Documentation String About a Function""".
+       This is to (generally) be uses for functions, this enables the Python in built, "help()", function.
+    Example:
+        def important_task(argument):
+            """Do an important task with the given argument."""
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
+    2) A hashtag (#) with the note starting with 1 blank space character directly to the right.
+    Exaple:
+        # The loop below prints the vital "Hello World!" string out 5 times.
+        for x in range(5):
+            variable_1 = "Hello World!"
+            print(variable_1
+
+    Example:
+        variable_1 = "Hello World!" # This variable holds the vital "Hello World!" string.
+'''
 
 import sqlite3
 import os
@@ -25,8 +29,6 @@ from terminaltables import SingleTable
 
 class DB(object):
     def __init__(self):
-        self.__author__ = "Taiga Osguthorpe"
-        self.__copyright__ = "Copyright (c) 2019 Taiga Osguthorpe"
         self.__version__ = "2.0"
         self.commited = None
         #self.strict_search = True
@@ -34,6 +36,8 @@ class DB(object):
     # Connection handling functions
     def _connect(self, path=None):
         """Opens or creates a databse if not allready there in the path specified if no path specified creates it in the smae folder as this file is located"""
+
+        # Check path argument is specified
         if path:
             if type(path) is not str:
                 raise TypeError("path argument must be a string!")
@@ -41,7 +45,7 @@ class DB(object):
             if os.path.isdir(path):
                 self.conn = sqlite3.connect(path)
             else:
-                raise UserWarning("The path specified for the database file dose not exist!")
+                raise Warning("The path specified for the database file dose not exist!")
 
         else:
             self.conn = sqlite3.connect('{0}/sumo.db'.format(os.path.dirname(os.path.abspath(__file__))))  # current directory/sumo.db
@@ -58,13 +62,23 @@ class DB(object):
 
         # Create "tags" table (stores: id (+1 to the number that came before), tag_name (user input for the tag name)   used as the tag info used in the "files_tags" table
         self.cur.execute('''CREATE TABLE IF NOT EXISTS tags
-                       (id INTEGER PRIMARY KEY AUTOINCREMENT, tag_name TEXT, removed INTEGER)''')
+                       (id INTEGER PRIMARY KEY AUTOINCREMENT, tag_name TEXT, force_prefix INTEGER, removed INTEGER)''')
+
+
+        # Categories A.K.A: cats
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS cats
+                       (id INTEGER PRIMARY KEY AUTOINCREMENT, cat_name TEXT, removed INTEGER)''')
+
+        # Categories_tags A.K.A: cats_tags
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS cats_tags
+                       (cat_id INTEGER, tag_id INTEGER)''')
 
         print("Sucsessfully oppened a connection to the database.")
 
 
     def _exit(self):
-        """Closes the connection to the database and returns True."""
+        """This should not be called manually, please use 'with db'.
+        Closes the connection to the database and returns True."""
         self.conn.close()
         print("Sucsessfully closed the connection to the database.")
         return True
@@ -72,8 +86,11 @@ class DB(object):
 
     # Context Manager
 
-    def __enter__(self):
-        self._connect()
+    def __enter__(self, path=None):
+        if path:
+            self._connect(path)
+        else:
+            self._connect()
         return self
 
 
@@ -93,7 +110,8 @@ class DB(object):
             #print(blacklist)
 
             def blacklist_check():
-                """Checks if the string tag_name contains any charecters in the blacklist string. Returns True if none are found and False if any are found"""
+                """Checks if the string tag_name contains any charecters in the blacklist string. Returns True if none are found and False if any are found
+                (This needs to be worked on)"""
                 if not tag_name:
                     return False
                 for c in tag_name:
@@ -102,9 +120,9 @@ class DB(object):
                             return False
                 return True
 
-            x = blacklist_check()
+            x = blacklist_check()  # Blacklist check is depreciated needs to be replaced
             if x is True:
-                self.cur.execute("SELECT * from tags WHERE tag_name=?", (tag_name.replace("\\", ""), ))
+                self.cur.execute("SELECT * from tags WHERE tag_name=?", (tag_name.replace("\\", ""), ))  # This whole check is depreciated. Use get_tag(tag_name)
                 result = self.cur.fetchall()
                 try:
                     if result[0][2] == 1:
@@ -117,7 +135,7 @@ class DB(object):
                     print("Tag allready exists!")
                     return
 
-                self.cur.execute("INSERT INTO tags VALUES(NULL,?,0)", (tag_name,))
+                self.cur.execute("INSERT INTO tags VALUES(NULL,?,0,0)", (tag_name,))
                 self.commited = False
                 return True
             else:
@@ -140,8 +158,7 @@ class DB(object):
             - example: file_name = 'image.png'
 
         response:
-        - type: dictionary
-        - example: {'file_path': '/home/user/path/', 'file_name': 'image.png', 'file_id': 1}"""
+        - type: None"""
 
         if type(file_path) is not str:
             raise TypeError("file_path must be a string")
@@ -174,38 +191,40 @@ class DB(object):
             raise Exception("file not found! Is the file_path correct or the file_name?")
 
 
-    def fetch_all(self):
-        return_list = []
-        self.cur.execute("SELECT * from tags")
-        return_list.append(self.cur.fetchall())
-        self.cur.execute("SELECT * from files")
-        return_list.append(self.cur.fetchall())
-        return return_list
+    def get_cat(self, cat_name=None, cat_id=None):
+        if cat_name:
+            if type(cat_name) is not str:
+                raise Exception("cat_name argument type must be string")
+
+            self.cur.execute("SELECT * FROM cats WHERE cat_name=?", (cat_name, ))
+            result = self.cur.fetchall()
+            return result
+
+        elif cat_id:
+            if type(cat_id) is not int:
+                raise Exception("cat_id argument tpye must be integer")
+
+            self.cur.execute("SELECT * FROM cats WHERE id=?", (cat_id, ))
+            result = self.cur.fetchall()
+            return result
 
 
-    def pretty_fetch_all(self):
-        self.cur.execute("SELECT * from tags")
-        return_tags_table = []
-        return_tags_table.append(["id", "tag name", "removed"])
-        for data in self.cur.fetchall():
-            return_tags_table.append(data)
+    def add_cat(self, cat_name, parent=None):
+        if parent:
+            raise Exception("cats cannot (yet) contain cats")
 
-        self.cur.execute("SELECT * from files")
-        return_files_table = []
-        return_files_table.append(["id", "file path", "file name", "removed"])
-        for data in self.cur.fetchall():
-            return_files_table.append(data)
+        blacklist = [" ", "", ":"]
+        for c in cat_name:
+            if c in blacklist:
+                raise Exception("cat_name must not contain ({0})".format(c))
 
-        self.cur.execute("SELECT * from files_tags")
-        return_files_tags_table = []
-        return_files_tags_table.append(["file_id", "tag_id"])
-        for data in self.cur.fetchall():
-            return_files_tags_table.append(data)
+        result = self.get_cat(cat_name)
+        if len(result) > 0:
+            raise Exception('category with name "{0}" allready exists.'.format(cat_name))
 
-        table_1 = SingleTable(return_tags_table, "tags")
-        table_2 = SingleTable(return_files_table, "files")
-        table_3 = SingleTable(return_files_tags_table, "files tags")
-        return print(table_1.table), print(table_2.table), print(table_3.table)
+        self.cur.execute("INSERT INTO cats VALUES (NULL,?,0)", (cat_name, ))
+        self.commited = False
+        return True
 
 
     def get_file(self, file_path=None, file_name=None, file_id=None):
@@ -229,10 +248,23 @@ class DB(object):
             if type(file_id) is not int:
                 raise TypeError("file_id must be int")
 
-            self.cur.execute("SELECT * from files where id=?", (file_id,))
+            self.cur.execute("SELECT * from files where id=?", (file_id, ))
             result = self.cur.fetchall()
             return {"file_id": file_id, "file_path": result[0][1], "file_name": result[0][2], "removed": result[0][3]}
 
+
+        elif file_name:
+            if type(file_name) is not str:
+                raise TypeError("file_name must be str")
+
+            self.cur.execute("SELECT * FROM files WHERE file_name=?", (file_name, ))
+            result = self.cur.fetchall()
+            return_list = []
+            for x in result:
+                r = {"file_id": x[0], "file_path": x[1], "file_name": x[2], "removed": result[0][3]}
+                return_list.append(r)
+
+            return return_list
         else:
             raise TypeError("get_file didnt get the right arguments :c")
 
@@ -262,7 +294,7 @@ class DB(object):
             raise TypeError("file_name must be a string")
 
         if force_remove:
-            self.cur.execute("DELETE FROM files where file_path=? and file_name=?",(file_path, file_name))
+            self.cur.execute("DELETE FROM files where file_path=? and file_name=?", (file_path, file_name))
             self.commited = False
             return
 
@@ -292,10 +324,67 @@ class DB(object):
         return return_list
 
 
+    def fetch_all(self):
+        return_list = []
+        self.cur.execute("SELECT * from tags")
+        return_list.append(self.cur.fetchall())
+        self.cur.execute("SELECT * from files")
+        return_list.append(self.cur.fetchall())
+        self.cur.execute("SELECT * from files_tags")
+        return_list.append(self.cur.fetchall())
+        self.cur.execute("SELECT * from cats")
+        return_list.append(self.cur.fetchall())
+        self.cur.execute("SELECT * from cats_tags")
+        return_list.append(self.cur.fetchall())
+        return return_list
+
+
+    def pretty_fetch_all(self):
+        self.cur.execute("SELECT * from tags")
+        return_tags_table = []
+        return_tags_table.append(["id", "tag name", "force_prefix", "removed"])
+        for data in self.cur.fetchall():
+            return_tags_table.append(data)
+
+        self.cur.execute("SELECT * from files")
+        return_files_table = []
+        return_files_table.append(["id", "file path", "file name", "removed"])
+        for data in self.cur.fetchall():
+            return_files_table.append(data)
+
+        self.cur.execute("SELECT * from files_tags")
+        return_files_tags_table = []
+        return_files_tags_table.append(["file_id", "tag_id"])
+        for data in self.cur.fetchall():
+            return_files_tags_table.append(data)
+
+        self.cur.execute("SELECT * from cats")
+        return_cats_table = []
+        return_cats_table.append(["id", "cat_name", "removed"])
+        for data in self.cur.fetchall():
+            return_cats_table.append(data)
+
+        self.cur.execute("SELECT * from cats_tags")
+        return_cats_tags_table = []
+        return_cats_tags_table.append(["cat_id", "tag_id"])
+        for data in self.cur.fetchall():
+            return_cats_tags_table.append(data)
+
+        # Create all the calsses for the created tables
+        table_1 = SingleTable(return_tags_table, "tags")
+        table_2 = SingleTable(return_files_table, "files")
+        table_3 = SingleTable(return_files_tags_table, "files tags")
+        table_4 = SingleTable(return_cats_table, "categories (cats)")
+        table_5 = SingleTable(return_cats_tags_table, "cats_tags")
+        # Return print functions for all created tables so they get displayed
+        return print(table_1.table), print(table_2.table), print(table_3.table), print(table_4.table), print(table_5.table)
+
+
     def get_tag(self, tag_name=None, tag_id=None):
         """Returns a dictionary containing the 'tag_name', 'tag_id', and 'removed' with the specified tag_name or tag_id.
         If no tag was found with the given infomation, returns None"""
-        #print("tag_name = {0}\ntag_id = {1}".format(tag_name, tag_id))
+
+        # Check if tag_name argument was specified
         if tag_name:
             if type(tag_name) is not str:
                 raise TypeError("tag_name must be a string.")
@@ -309,13 +398,17 @@ class DB(object):
 
             return {"tag_id": result[0][0], "tag_name": result[0][1], "removed": result[0][2]}
 
+        # Check if tag_id argument was specified
         elif tag_id:
+
+            # Check if tag_id is an integer as it must be an integer
             if type(tag_id) is not int:
                 raise TypeError("tag_id must be an integer")
 
             self.cur.execute("SELECT * from tags WHERE id=?", (tag_id,))
             result = self.cur.fetchall()
 
+            # Empty result check
             if len(result) == 0:
                 print("No tag found with tag_id: {0}".format(tag_id))
                 return None
@@ -344,8 +437,11 @@ class DB(object):
             #return self.cur.fetchall()
             result = self.cur.fetchall()
             print("fetch_from_files_tags result: {0}".format(result))
+
+            # Empty result check
             if len(result) == 0:
                 return None
+
             r = []
             [(lambda id: r.append(id[0]))(id) for id in result]
             #[(lambda s: print(" - {0} - ({1})".format(s.name, s.id)))(s) for s in client.guilds]
@@ -362,40 +458,55 @@ class DB(object):
 
 
     def search(self, query, strict_search=True, allow_removed=False):
-        """Search the db with tags and get a list of file_id 's that have the tag linked to them.'"""
-        if type(query) is not str:
-            raise TypeError("query must be string")
+        """Search the db with tags and get a list of file_id's that have the tag(s) linked to them.
+        WARNING THIS NEEDS TO BE WORKED ON!'"""
 
-        if query.replace(" ", "") == "":  # If search bar is empty (Needs to remove " " spaces in future)
+        # Make sure query argument is a string
+        if type(query) is not str:
+            raise TypeError("query type must be string")
+
+        # Empty query string check
+        if query.replace(" ", "") == "":  # If search bar is empty (Needs to remove " " spaces in future) # What do you mean?
             result = self.get_all_files()
             return result
 
+        # This block of code needs working on and should not yet be implemented!
+        """
+        split = query.split(":")
+        if len(split) == 2:
+            print("split[0]: {0}".format(split[0]))
+            x = ("file", "file_name", "f")
+            if split[0] in x:
+                self.cur.execute("SELECT id FROM files WHERE file_name=?", (query.split(":")[1],))
+                result = self.cur.fetchall()
+                print("result: {0}".format(result))
+                return_list = []
+                for x in result:
+                    return_list.append(x[0])
+                return return_list
+            return print("split[0] in x: False")
+        """
 
-        if len(query.split(":")) == 2:
-            self.cur.execute("SELECT id FROM files WHERE file_name=?", (query.split(":")[1],))
-            result = self.cur.fetchall()
-            print("result: {0}".format(result))
-            return_list = []
-            for x in result:
-                return_list.append(x[0])
-            return return_list
-
-
-        query_list = query.split(" ")
+        # Main search logic starts
+        query_list = query.split(" ")  # Create a list of tags via spliting at spaces. E.g. "tag_1 tag_2" = [tag_1, tag_2
         print("query_list: {0}".format(query_list))
 
-        tag_id_list = []
+        tag_id_list = []  # A list used to store tag_id that are found from the loop below.
+
+        # Get tag_id from each tag listed in the query_list.
+        # This is then used for getting the files asosiated with the tags found.
         for tag in query_list:
-            """Get tags id from query string"""
-            if tag == '':
+            if tag == "":  # This negates empty strings caused by spliting double spaces
                 pass
 
             else:
-                result_tag = self.get_tag(tag_name=tag)
+                result_tag = self.get_tag(tag_name=tag)  # self.get_tag returns a dictionary if found, returns None if nothing was found
+
+                # No result check
                 if result_tag is None:
-                        print('"{0}" tag was not found'.format(tag))
-                        #pass
-                        return None
+                    print('"{0}" tag was not found'.format(tag))
+                    #pass
+                    return None
 
                 else:
                     tag_id_list.append(result_tag['tag_id'])
@@ -404,24 +515,16 @@ class DB(object):
 
         files_list = []
         print("Length tag_id_list: {0}".format(len(tag_id_list)))
-        for tag_id in tag_id_list:
-            self.cur.execute("SELECT file_id FROM files_tags WHERE tag_id=?", (tag_id,))
-            result = self.cur.fetchall()
-            print("Result: {0}".format(result))
-            if len(result) > 0:
-                #print("result[0][0]: {0}".format(result[0][0]))
-                temp_file_list = []
 
-                """if temp_file_list.__contains__(result[0][0]):
-                    pass
-                else:
-                    temp_file_list.append(result[0][0])"""
-                for file_id in result:
-                    temp_file_list.append(file_id[0])
-                #temp_file_list.append(result[0][0])
-            else:
+        for tag_id in tag_id_list:
+            result = self.fetch_from_files_tags(tag_id=tag_id)
+            print("Result: {0}".format(result))
+            if len(result) == 0:
                 print("tag_id '{0}' is not assigned to any file.".format(tag_id))
-            files_list.append(temp_file_list)
+                return None
+            else:
+                files_list.append(result)
+
         print("files_list: {0}".format(files_list))
 
 
@@ -429,7 +532,6 @@ class DB(object):
         if len(files_list) == 1:
             return list(set(files_list[0]))  # Return a list of a list 'set' stripes any duplicates if somehow there are any
 
-        print("!!!!!!!!!!!!!!!!\n{0}".format(files_list))
 
         return_list = []
         for parent in files_list:
@@ -484,10 +586,8 @@ class DB(object):
 
 
     def remove_tag(self, tag_name, force_remove=None):
-        """Sets removed to 1 in db unless force_remove is True then removes the entry from the db. If sucsessfull returns True. If not sucsesfull returns False
-        tag_name:
-        - Required! str of tag_name being removed
-        force_remove:"""
+        """Sets removed to 1 in db unless force_remove is True then removes the entry from the db.
+        If sucsessfull returns True. If not sucsesfull returns False"""
         if type(tag_name) is not str:
             raise TypeError("tag_name must be str")
 
@@ -496,14 +596,44 @@ class DB(object):
             return False
 
         if force_remove:
-            t = self.get_tag(tag_nme)
-            self.cur.execute("DELETE FROM files_tags where tag_id=?", (t['tag_id'], ))
+            t = self.get_tag(tag_name)
+            self.cur.execute("DELETE FROM files_tags WHERE tag_id=?", (t['tag_id'], ))
             self.cur.execute("DELETE FROM tags where tag_name=?", (tag_name, ))
             return True
         else:
             self.cur.execute("UPDATE tags SET removed=1 WHERE tag_name=?", (tag_name,))
             self.commited = False
             return True
+
+
+    ## Databsse cleanup functions
+
+    def cleanup_files(self, remove_file=False):
+        """Deletes all files entries that have the removed column set to 1."""
+        if remove_file:
+            print("Removed file test.")
+        self.cur.execute("DELETE FROM files WHERE removed=1")
+        self.commited = False
+        return True
+
+
+    def cleanup_tags(self):
+        """Deletes all tags that have the removed column set to 1"""
+        self.cur.execute("DELETE FROM tags WHERE removed=1")
+        self.commited = False
+        return True
+
+
+    """
+    def cleanup_files_tags(self):
+            self.get_all_tags()
+            self.cur.execute("SELECT * FROM files_tags")
+            result = self.cur.fetchall()
+            for x in result:
+                file_id = x[0]
+                tag_id = x[1]
+                print("x: file_id: {0} tag_id: {1}".format(file_id, tag_id))
+    """
 
 
     # Database miscellaneous function
@@ -518,4 +648,5 @@ class DB(object):
 
 
 if __name__ == '__main__':
+    import sys
     sys.exit()
