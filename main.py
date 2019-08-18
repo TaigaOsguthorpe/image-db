@@ -8,29 +8,18 @@ import os
 #import atexit
 
 
-try:
-    _fromUtf8 = QtCore.QString.fromUtf8
-except AttributeError as error:
-    raise(error)
-#    _fromUtf8 = lambda s: s
-
-
-
 
 class Ui_MainWindow(object):
     def __init__(self):
         self.db = DB()
         print("Backend Version: {0}".format(self.db.__version__))
 
-    def succ(self):
-        print("succ")
-
-
-    def succ2(self, text):
+    # This function is not needed
+    def do_something(self, text):
         #item = self.add_images_widget.currentItem()
         #data = item.data(QtCore.Qt.UserRole)
         #print("data: '{0}'".format(data))
-        print("succ2: {0}".format(text))
+        print("do_something: {0}".format(text))
 
 
     def add_images_ctx_(self):
@@ -530,7 +519,7 @@ class Ui_MainWindow(object):
 
         """self.a_i_ctx_item = QtWidgets.QAction("Assign Tag")
         #self.a_i_ctx_item.triggered.connect(self.open_tag_creator)
-        self.a_i_ctx_item.triggered.connect(lambda: self.succ2("succ"))
+        self.a_i_ctx_item.triggered.connect(lambda: self.do_something("something"))
         self.add_images_context_menu.addAction(self.a_i_ctx_item)"""
 
         self.a_i_ctx_commit = QtWidgets.QAction("Commit to DB")
