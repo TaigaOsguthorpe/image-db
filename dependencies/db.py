@@ -48,7 +48,7 @@ class DB(object):
                 raise Warning("The path specified for the database file dose not exist!")
 
         else:
-            self.conn = sqlite3.connect('{0}/sumo.db'.format(os.path.dirname(os.path.abspath(__file__))))  # current directory/sumo.db
+            self.conn = sqlite3.connect('{0}/sqlite3.db'.format(os.path.dirname(os.path.abspath(__file__))))  # current directory/sqlite3.db
 
         self.cur = self.conn.cursor()
 
@@ -77,7 +77,7 @@ class DB(object):
 
 
     def _exit(self):
-        """This should not be called manually, please use 'with db'.
+        """This should not be called manually, please use 'with db'!
         Closes the connection to the database and returns True."""
         self.conn.close()
         print("Sucsessfully closed the connection to the database.")
@@ -105,7 +105,7 @@ class DB(object):
         if type(tag_name) is not str:
             raise TypeError("tag_name must be string")
         else:
-            allowed = "abcdefghijklmnopqrstuvwxyz-_/=+^0123456789"
+            allowed = "abcdefghijklmnopqrstuvwxyz-_/=+^0123456789"  # This is no longer used
             blacklist = [" ", "", ":"]
             #print(blacklist)
 
