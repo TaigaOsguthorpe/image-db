@@ -56,7 +56,7 @@ class Ui_MainWindow(object):
                     image_path = "{0}/{1}".format(file_['file_path'], file_['file_name'])
                     print(image_path)
                     #icon.addPixmap(QtGui.QPixmap(_fromUtf8(image_path)).scaled(256, 256, aspectMode=QtCore.Qt.KeepAspectRatio), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-                    icon.addPixmap(QtGui.QPixmap(_fromUtf8(image_path)).scaled(256, 256, aspectMode=QtCore.Qt.KeepAspectRatio), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+                    icon.addPixmap(QtGui.QPixmap(image_path).scaled(256, 256, aspectMode=QtCore.Qt.KeepAspectRatio), QtGui.QIcon.Normal, QtGui.QIcon.Off)
                     #icon.addPixmap(QtGui.QPixmap(_fromUtf8(image_path)))
                     item = QtWidgets.QListWidgetItem()
                     item.setIcon(icon)
@@ -235,7 +235,7 @@ class Ui_MainWindow(object):
             else:
                 #print("file_d (file): {0}".format(file))
                 icon = QtGui.QIcon()
-                icon.addPixmap(QtGui.QPixmap(_fromUtf8(file)).scaled(256, 256, aspectMode=QtCore.Qt.KeepAspectRatio))
+                icon.addPixmap(QtGui.QPixmap(file).scaled(256, 256, aspectMode=QtCore.Qt.KeepAspectRatio))
                 item = QtWidgets.QListWidgetItem()
                 item.setIcon(icon)
                 item.setData(QtCore.Qt.UserRole, file)
