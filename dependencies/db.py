@@ -15,7 +15,7 @@
         # The loop below prints the vital "Hello World!" string out 5 times.
         for x in range(5):
             variable_1 = "Hello World!"
-            print(variable_1
+            print(variable_1)
 
     Example:
         variable_1 = "Hello World!" # This variable holds the vital "Hello World!" string.
@@ -23,7 +23,6 @@
 
 import sqlite3
 import os
-import sys
 from terminaltables import SingleTable
 
 
