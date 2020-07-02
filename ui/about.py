@@ -1,22 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-    Image-db - An image tagging/sorting program.
-    Copyright (C) 2019 Taiga Osguthorpe
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-"""
-
 from PySide2 import QtCore, QtGui, QtWidgets, __version__
 import sqlite3
 import terminaltables
@@ -202,7 +184,7 @@ class Ui_AboutDialog(object):
     def retranslateUi(self, AboutDialog):
         AboutDialog.setWindowTitle(QtWidgets.QApplication.translate("AboutDialog", "Dialog", None, -1))
         self.label.setText(QtWidgets.QApplication.translate("AboutDialog", "Image-db", None, -1))
-        self.image_db_version_label.setText(QtWidgets.QApplication.translate("AboutDialog", "Version: 1.5 (Alpha)", None, -1))
+        self.image_db_version_label.setText(QtWidgets.QApplication.translate("AboutDialog", "Version: 0.5 (Alpha)", None, -1))
         self.copyright_label.setText(QtWidgets.QApplication.translate("AboutDialog", "Copyright © 2019 Taiga Osguthorpe", None, -1))
         self.backend_version_label.setText(QtWidgets.QApplication.translate("AboutDialog", "Backend Version: 2.0", None, -1))
         self.python_version_label.setText(QtWidgets.QApplication.translate("AboutDialog", "Python Version: {0}".format(sys.version), None, -1))
